@@ -1,45 +1,27 @@
-import type { Browser, Page } from "playwright";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import type { BrowserContext, Page } from "playwright";
 
-const cdpPort = Number(process.env.NEXUS_BROWSER_CDP_PORT ?? 9233);
-const cdpEndpoint = `http://127.0.0.1:${cdpPort}`;
-let browserPromise: Promise<Browser> | undefined;
+const backendDirectory = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+const profileDirectory = process.env.NEXUS_BROWSER_PROFILE_DIR ?? resolve(backendDirectory, ".data/chromium-profile");
+let contextPromise: Promise<BrowserContext> | undefined;
 
-async function waitForCdp(): Promise<void> {
-  const deadline = Date.now() + 15_000;
-  let lastError = "not responding yet";
-
-  while (Date.now() < deadline) {
-    try {
-      const response = await fetch(`${cdpEndpoint}/json/version`, { signal: AbortSignal.timeout(750) });
-      if (response.ok) return;
-      lastError = `HTTP ${response.status}`;
-    } catch (error) {
-      lastError = error instanceof Error ? error.message : "connection failed";
-    }
-    await new Promise((resolveWait) => setTimeout(resolveWait, 300));
-  }
-
-  throw new Error(`Nexus Edge is not available at ${cdpEndpoint}: ${lastError}. Start the Nexus Edge window first.`);
-}
-
-/** Attach Playwright to the separate Nexus Edge window at its local CDP endpoint. */
-export async function startBrowser(): Promise<Browser> {
-  browserPromise ??= (async () => {
-    await waitForCdp();
+/** Launch and reuse Nexus's own visible Chromium with a persistent profile. */
+export async function startBrowser(): Promise<BrowserContext> {
+  contextPromise ??= (async () => {
     const { chromium } = await import("playwright");
-    return chromium.connectOverCDP(cdpEndpoint, { timeout: 10_000 });
+    return chromium.launchPersistentContext(profileDirectory, { headless: false });
   })().catch((error: unknown) => {
-    browserPromise = undefined;
-    const detail = error instanceof Error ? error.message : "unknown startup error";
-    throw new Error(`Could not connect to Nexus Edge: ${detail}`, { cause: error });
+    contextPromise = undefined;
+    throw new Error("Could not launch Nexus's Chromium browser. Install it with `npx playwright install chromium`.", {
+      cause: error,
+    });
   });
-
-  return browserPromise;
+  return contextPromise;
 }
 
 export async function getActivePage(): Promise<Page> {
-  const browser = await startBrowser();
-  const context = browser.contexts()[0] ?? (await browser.newContext());
+  const context = await startBrowser();
   const pages = context.pages();
   return pages.at(-1) ?? context.newPage();
 }
@@ -115,9 +97,9 @@ export async function scrollPage(direction: "up" | "down", amount: number): Prom
   await page.evaluate((distance) => window.scrollBy(0, distance), direction === "down" ? amount : -amount);
 }
 
-/** Disconnect Playwright from the Nexus Edge window. */
+/** Close Nexus's Chromium browser cleanly when the backend shuts down. */
 export async function closeBrowser(): Promise<void> {
-  const browser = await browserPromise?.catch(() => undefined);
-  await browser?.close().catch(() => undefined);
-  browserPromise = undefined;
+  const context = await contextPromise?.catch(() => undefined);
+  await context?.close();
+  contextPromise = undefined;
 }

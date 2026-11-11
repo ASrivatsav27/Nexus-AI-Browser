@@ -1,6 +1,6 @@
 # Nexus backend
 
-TypeScript + Bun + Express API with Playwright attached to a separate Nexus-owned Microsoft Edge profile.
+TypeScript + Express API with Playwright launching a Nexus-owned Chromium browser.
 
 ## Structure
 
@@ -24,17 +24,16 @@ backend/
 
 ## Run
 
-Install dependencies and open a separate Nexus Edge window, then start the backend:
+Install dependencies and the Playwright-managed Chromium browser once, then start the backend:
 
 ```powershell
 npm install
-Start-Process -FilePath "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe" -ArgumentList @("--remote-debugging-port=9233", "--user-data-dir=C:\MajorProject\Nexus\backend\.data\nexus-edge-profile", "--no-first-run", "about:blank")
-bun run index.ts
+$env:PLAYWRIGHT_BROWSERS_PATH = "$PWD\.playwright"
+npx playwright install chromium
+node --env-file=.env --import tsx index.ts
 ```
 
-The npm lockfile pins the installed dependencies. Bun is still the TypeScript runtime for the server.
-
-Playwright attaches through the local CDP endpoint on port `9233`. The separate browser profile is stored under `backend/.data/nexus-edge-profile`; this does not connect to Comet or use your normal Edge profile.
+The backend launches a visible Chromium window using a persistent Nexus profile stored under `backend/.data/chromium-profile`. It does not connect to Comet or Microsoft Edge.
 
 The API listens on `http://127.0.0.1:8000`.
 
@@ -55,4 +54,4 @@ Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:8000/agent/run" `
   -Body (@{ request = "Find the page's contact link and open it" } | ConvertTo-Json)
 ```
 
-Keep the Nexus Edge window open while using the backend. It closes separately from the backend and does not affect Comet.
+The Chromium window launches with the backend and closes when the backend receives Ctrl+C.
