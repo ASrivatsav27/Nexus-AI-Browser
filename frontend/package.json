@@ -10,7 +10,6 @@
     "electron:dev": "concurrently -k \"next dev --hostname 127.0.0.1 --port 3000\" \"wait-on http://127.0.0.1:3000 && electron electron/main.cjs\""
   },
   "dependencies": {
-    "@nexus/frontend": ".",
     "@tanstack/react-query": "^5.90.2",
     "lucide-react": "^0.468.0",
     "next": "^15.5.6",
@@ -25,8 +24,16 @@
     "@types/react-dom": "^19.2.2",
     "concurrently": "^9.2.1",
     "electron": "^38.2.2",
-    "tailwindcss": "^4.1.14",
     "typescript": "^5.9.3",
     "wait-on": "^8.0.4"
+  },
+  "trustedDependencies": [
+    "electron"
+  ],
+  "allowScripts": {
+    "electron": true
+  },
+  "overrides": {
+    "yauzl": "^3.3.1"
   }
 }
