@@ -1,6 +1,6 @@
 # Nexus backend
 
-TypeScript + Express API with Playwright launching a Nexus-owned Chromium browser.
+TypeScript + Express API that attaches (Playwright over CDP) to the running Nexus Electron app. It never launches a browser.
 
 ## Structure
 
@@ -24,16 +24,13 @@ backend/
 
 ## Run
 
-Install dependencies and the Playwright-managed Chromium browser once, then start the backend:
+Start the backend first or second; it keeps watching for Electron and logs `[nexus] Electron browser connected` once the connection to the Electron app is up (and `disconnected` if it drops). Electron advertises its debugging port through `http://127.0.0.1:9234/active`. No Playwright browser download is needed.
 
 ```powershell
-npm install
-$env:PLAYWRIGHT_BROWSERS_PATH = "$PWD\.playwright"
-npx playwright install chromium
-node --env-file=.env --import tsx index.ts
+bun install
+bun run index.ts
+# or: node --env-file=.env --import tsx index.ts
 ```
-
-The backend launches a visible Chromium window using a persistent Nexus profile stored under `backend/.data/chromium-profile`. It does not connect to Comet or Microsoft Edge.
 
 The API listens on `http://127.0.0.1:8000`.
 
@@ -54,4 +51,4 @@ Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:8000/agent/run" `
   -Body (@{ request = "Find the page's contact link and open it" } | ConvertTo-Json)
 ```
 
-The Chromium window launches with the backend and closes when the backend receives Ctrl+C.
+The backend does not open any browser window; it only drives the active Nexus Electron tab.

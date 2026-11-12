@@ -11,4 +11,5 @@ async function request(path: string, init?: RequestInit) {
 
 export async function getCurrentPage() { return pageSchema.parse(await request("/browser/page")); }
 export async function navigate(url: string) { return pageSchema.parse(await request("/browser/navigate", { method: "POST", body: JSON.stringify({ url }) })); }
-export async function runAgent(requestText: string) { return agentResponseSchema.parse(await request("/agent/run", { method: "POST", body: JSON.stringify({ request: requestText }) })); }
+export type HistoryTurn = { role: "user" | "assistant"; text: string; page?: { title: string; url: string } };
+export async function runAgent(requestText: string, history: HistoryTurn[] = []) { return agentResponseSchema.parse(await request("/agent/run", { method: "POST", body: JSON.stringify({ request: requestText, history }) })); }
